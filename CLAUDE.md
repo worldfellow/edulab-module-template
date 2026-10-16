@@ -16,9 +16,10 @@ This repo is ONE module for the Edulab Bench platform. It installs per universit
 ## Rules (review rejects violations)
 1. New table = new `schema/*.json`. Never hand-write CREATE TABLE or CRUD endpoints.
 2. Never touch another module's tables or import its code. Use `link` to `core.*`, events, or a dependency's published API.
-3. Every entity has `permissions`; no permission = no access.
+3. Every entity has `permissions`; no permission = no access. `onlyOwn` = rows about the user themselves; `scope` = rows in the colleges/hostels/departments… assigned to the user. Never fake one with the other.
 4. Names: tables live in this module's own database section (`<module>.<entity>`); roles `<module>:<role>`; events `<module>.<entity>.<past-verb>`.
-5. Per-university values go in manifest `settings`, read via `ctx.settings`. No secrets, university names or URLs in code.
+5. Per-university values go in manifest `settings`, read via `ctx.settings`. Secrets are declared in manifest `secrets` and read via `ctx.secrets`. No secrets, university names or URLs in code.
 6. Personal data fields get `"pii": true`. Money uses type `money`.
 7. Everything re-runnable: install twice, handle each event twice → no change.
 8. Every change: bump `version` (semver) + `CHANGELOG.md`; update `README.md` if roles/settings/events changed.
+9. No dependency cycles. If A depends on B, B never listens to A; A calls B's API instead.

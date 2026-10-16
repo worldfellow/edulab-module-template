@@ -17,7 +17,8 @@ const FIELD_TYPES = new Set(["text", "longtext", "number", "decimal", "money", "
   "select", "link", "table", "file", "image", "email", "phone", "json"]);
 const SETTING_TYPES = new Set(["text", "number", "check", "select", "date"]);
 const ACTIONS = new Set(["read", "create", "update", "delete", "import", "export"]);
-const CORE = new Set(["user", "student", "college", "programme", "course", "subject", "academic_year"]);
+const CORE = new Set(["user", "student", "college", "faculty", "department", "programme", "subject", "academic_year"]);
+const OWNER_CORE = new Set(["core.user", "core.student"]);
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const IDENT = /^[a-z][a-z0-9_]*$/;
 
@@ -25,6 +26,11 @@ const m = existsSync(join(root, "manifest.json")) ? readJson("manifest.json") : 
 const schemaDir = join(root, "schema");
 const schemaFiles = existsSync(schemaDir) ? readdirSync(schemaDir).filter((f) => f.endsWith(".json")) : [];
 const entities = new Set(schemaFiles.map((f) => basename(f, ".json")));
+// entities that represent a person: they have a link field "user" to core.user
+const ownerSchemas = new Set(schemaFiles.filter((f) => {
+  try { return JSON.parse(readFileSync(join(schemaDir, f), "utf8")).fields?.some((x) => x.name === "user" && x.to === "core.user"); }
+  catch { return false; }
+}).map((f) => basename(f, ".json")));
 
 if (m) {
   if (!/^[a-z][a-z0-9-]*$/.test(m.name || "")) err("manifest.json", `name "${m.name}" must be lowercase letters, digits, hyphens`);
@@ -37,12 +43,16 @@ if (m) {
   }
   if (!Object.keys(m.roles || {}).length) err("manifest.json", "declare at least one role");
   const deps = new Set(Object.keys(m.dependsOn || {}));
+  const optional = new Set(Object.keys(m.optionalDependsOn || {}));
+  for (const d of optional) if (deps.has(d)) err("manifest.json", `"${d}" is in both dependsOn and optionalDependsOn`);
+  for (const sec of m.secrets || []) if (!/^[a-z0-9_.]+$/.test(sec)) err("manifest.json", `secret "${sec}" must be lowercase dotted name, e.g. gateway.api_key`);
+  for (const route of m.publicRoutes || []) if (!String(route).startsWith(`/${m.name}/`)) err("manifest.json", `public route "${route}" must start with "/${m.name}/"`);
   for (const ev of m.events?.emits || []) {
     if (!new RegExp(`^${m.name}\\.[a-z0-9_]+\\.[a-z_]+$`).test(ev)) err("manifest.json", `emitted event "${ev}" must be "${m.name}.<entity>.<past-verb>"`);
   }
   for (const ev of m.events?.listens || []) {
     const src = ev.split(".")[0];
-    if (src !== m.name && src !== "core" && !deps.has(src)) err("manifest.json", `listens to "${ev}" but "${src}" is not in dependsOn`);
+    if (src !== m.name && src !== "core" && !deps.has(src) && !optional.has(src)) err("manifest.json", `listens to "${ev}" but "${src}" is not in dependsOn or optionalDependsOn`);
   }
   for (const [k, s] of Object.entries(m.settings || {})) {
     if (!SETTING_TYPES.has(s?.type)) err("manifest.json", `setting "${k}" type must be one of ${[...SETTING_TYPES].join(", ")}`);
@@ -82,7 +92,19 @@ for (const file of schemaFiles) {
     if (m && !(role in (m.roles || {}))) err(rel, `permission role "${role}" is not declared in manifest roles`);
     const acts = Array.isArray(p) ? p : p?.actions;
     if (!Array.isArray(acts) || !acts.every((a) => ACTIONS.has(a))) err(rel, `role "${role}": actions must be from read, create, update, delete, import, export`);
-    if (p?.onlyOwn && fields.find((f) => f.name === p.onlyOwn)?.type !== "link") err(rel, `role "${role}": onlyOwn must name a link field`);
+    if (p?.onlyOwn) {
+      const f = fields.find((x) => x.name === p.onlyOwn);
+      const [mod, ent] = String(f?.to || "").split(".");
+      if (f?.type !== "link") err(rel, `role "${role}": onlyOwn must name a link field`);
+      else if (mod === "core" && !OWNER_CORE.has(f.to))
+        err(rel, `role "${role}": onlyOwn "${p.onlyOwn}" links to ${f.to}, which is not a person. Use "scope" for colleges, departments, hostels…`);
+      else if (mod === m?.name && !ownerSchemas.has(ent))
+        err(rel, `role "${role}": onlyOwn "${p.onlyOwn}" links to ${f.to}, which has no "user" link field`);
+    }
+    if (p?.scope) {
+      const first = String(p.scope).split(".")[0];
+      if (fields.find((x) => x.name === first)?.type !== "link") err(rel, `role "${role}": scope must start with a link field (e.g. "college" or "room.hostel")`);
+    }
   }
 }
 
