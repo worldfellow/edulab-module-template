@@ -1,0 +1,22 @@
+{
+  "name": "hostel",
+  "title": "Hostel Management",
+  "version": "0.1.0",
+  "publisher": "Edulab",
+  "core": ">=1.0.0 <2.0.0",
+  "dependsOn": { "fees": ">=1.0.0" },
+  "roles": {
+    "hostel:admin":   "Manages hostels, rooms and allotments",
+    "hostel:warden":  "Manages allotments for assigned hostels",
+    "hostel:student": "Applies for a room and sees own allotment"
+  },
+  "events": {
+    "emits":   ["hostel.allotment.created", "hostel.allotment.vacated"],
+    "listens": ["fees.payment.received"]
+  },
+  "settings": {
+    "maxRoomsPerStudent": { "type": "number", "default": 1, "label": "Rooms per student" },
+    "allotmentNeedsFee":  { "type": "check",  "default": true, "label": "Allot only after hostel fee is paid" }
+  },
+  "price": { "plan": "per-student-per-year" }
+}

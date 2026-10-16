@@ -1,0 +1,20 @@
+{
+  "name": "allotment",
+  "label": "Room Allotment",
+  "naming": "ALT-{YYYY}-{#####}",
+  "trackChanges": true,
+  "fields": [
+    { "name": "student",  "type": "link", "to": "core.student", "required": true },
+    { "name": "room",     "type": "link", "to": "hostel.room",  "required": true },
+    { "name": "from",     "type": "date", "required": true },
+    { "name": "to",       "type": "date" },
+    { "name": "status",   "type": "select", "options": ["Requested", "Allotted", "Vacated"], "default": "Requested" },
+    { "name": "guardian_phone", "type": "phone", "pii": true }
+  ],
+  "unique": [["student", "from"]],
+  "permissions": {
+    "hostel:admin":   ["read", "create", "update", "delete"],
+    "hostel:warden":  ["read", "create", "update"],
+    "hostel:student": { "actions": ["read", "create"], "onlyOwn": "student" }
+  }
+}

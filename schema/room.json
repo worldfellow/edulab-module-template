@@ -1,0 +1,19 @@
+{
+  "name": "room",
+  "label": "Room",
+  "naming": "{hostel}-{number}",
+  "fields": [
+    { "name": "hostel",   "type": "text",   "required": true },
+    { "name": "number",   "type": "text",   "required": true },
+    { "name": "college",  "type": "link",   "to": "core.college" },
+    { "name": "capacity", "type": "number", "required": true, "min": 1 },
+    { "name": "type",     "type": "select", "options": ["Single", "Double", "Dormitory"] },
+    { "name": "fee",      "type": "money" }
+  ],
+  "unique": [["hostel", "number"]],
+  "permissions": {
+    "hostel:admin":   ["read", "create", "update", "delete"],
+    "hostel:warden":  ["read", "update"],
+    "hostel:student": ["read"]
+  }
+}
