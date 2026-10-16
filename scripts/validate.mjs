@@ -16,7 +16,7 @@ const readJson = (file) => {
 const FIELD_TYPES = new Set(["text", "longtext", "number", "decimal", "money", "check", "date", "datetime", "time",
   "select", "link", "table", "file", "image", "email", "phone", "json"]);
 const SETTING_TYPES = new Set(["text", "number", "check", "select", "date"]);
-const ACTIONS = new Set(["read", "create", "update", "delete"]);
+const ACTIONS = new Set(["read", "create", "update", "delete", "import", "export"]);
 const CORE = new Set(["user", "student", "college", "programme", "course", "subject", "academic_year"]);
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const IDENT = /^[a-z][a-z0-9_]*$/;
@@ -81,7 +81,7 @@ for (const file of schemaFiles) {
   for (const [role, p] of Object.entries(perms)) {
     if (m && !(role in (m.roles || {}))) err(rel, `permission role "${role}" is not declared in manifest roles`);
     const acts = Array.isArray(p) ? p : p?.actions;
-    if (!Array.isArray(acts) || !acts.every((a) => ACTIONS.has(a))) err(rel, `role "${role}": actions must be from read, create, update, delete`);
+    if (!Array.isArray(acts) || !acts.every((a) => ACTIONS.has(a))) err(rel, `role "${role}": actions must be from read, create, update, delete, import, export`);
     if (p?.onlyOwn && fields.find((f) => f.name === p.onlyOwn)?.type !== "link") err(rel, `role "${role}": onlyOwn must name a link field`);
   }
 }

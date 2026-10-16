@@ -23,7 +23,7 @@ description: Exact formats for building an Edulab Bench module — schema JSON f
   }
 }
 ```
-Generated per site: table `<module>_<entity>`, `GET/POST /api/<module>/<entity>`, `GET/PATCH/DELETE /api/<module>/<entity>/:id` (filters, paging), list + form screens, permission checks, change history, column migrations on version upgrade.
+Generated per site: table `<module>.<entity>` (own Postgres schema in the university's DB; module DB role can write only its own section, read `core` + `dependsOn` sections), `GET/POST /api/<module>/<entity>`, `GET/PATCH/DELETE /api/<module>/<entity>/:id` (filters, paging), list + form screens, permission checks, change history, column migrations on version upgrade.
 
 Field types: `text` `longtext` (maxLength) · `number` `decimal` (min,max) · `money` (paise) · `check` · `date` `datetime` `time` (UTC stored) · `select` (options) · `link` (to: `core.<e>` | `<this module>.<e>` | entity of a `dependsOn` module) · `table` (of: child schema in this module) · `file` `image` (private default) · `email` `phone` · `json` (avoid).
 Field keys: `name` `type` `required` `unique` `default` `pii` `min` `max` `maxLength` `options` `to` `of`.
@@ -52,5 +52,19 @@ Name `<module>.<entity>.<past-verb>`. Payload = IDs + few needed fields. Deliver
 ## Release checks (all must pass)
 valid manifest + schemas · install twice = no change · upgrade from previous version with data · every entity has permissions · no cross-module imports/queries · only declared events · pii marked · no secrets/university names/URLs · tests pass · security scan + VAPT · README sections filled · CHANGELOG entry.
 
+## Permissions actions
+`read` `create` `update` `delete` `import` `export`. `import`/`export` enable the automatic Data Import/Export screens (template download → upload → preview → background job → per-row log → history) for that entity. No module code needed.
+
+## import/ (only when replacing an old Edulab product)
+`import/MAPPING.md` (old table → core / module / other / drop) · `import/sources.json` (old systems + totals checks) · `import/mappers/<entity>.ts`:
+```ts
+import { mapper } from "@edulab/core/import";
+export default mapper({
+  from: "legacy.hostel_allotments", to: "hostel.allotment", key: (row) => row.id,
+  map: async (row, ctx) => ({ student: await ctx.ref("core.student", { prn: row.prn }), status: { A: "Allotted" }[row.status] }),
+});
+```
+Core imports core data first (students de-duplicated by PRN/email/mobile); mappers only `ctx.ref` it, never create it. Dependencies import first. Re-runnable via `platform.import_map`. Unmappable row → `throw` with a reason.
+
 ## Uninstall
-Roles, screens, API, handlers removed; tables + files archived, never deleted.
+Roles, screens, API, handlers removed; the module's section is renamed to an archive, files kept, never deleted.
