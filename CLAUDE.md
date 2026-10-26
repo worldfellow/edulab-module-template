@@ -5,7 +5,7 @@ This repo is ONE module for the Edulab Bench platform. It installs per universit
 ## Before writing anything
 - Use the `edulab-module` skill for the exact formats (schema field types, `ctx` API, events, release checks). Don't guess formats.
 - Copy the pattern of the existing files (`manifest.json`, `schema/*.json`). Don't read anything else to learn the contract.
-- Full human guide (only if the skill doesn't answer it): https://github.com/worldfellow/edulab-bench/blob/main/docs/building-a-module.md
+- Full human guide (only if the skill doesn't answer it): docs/building-a-module.md (core data model: docs/core-entities.md)
 
 ## Layout
 - `manifest.json` — name, version, dependsOn, roles, events, settings

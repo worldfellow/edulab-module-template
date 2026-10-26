@@ -1,7 +1,7 @@
 <!--
 This file becomes your module's page in the Edulab marketplace.
 Fill in every section; review rejects empty ones. Delete this comment.
-How to build a module: docs/building-a-module.md in the edulab-bench repo.
+How to build a module: docs/building-a-module.md in the edulab-module-template repo.
 -->
 
 # Hostel Management
