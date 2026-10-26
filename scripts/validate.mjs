@@ -79,7 +79,9 @@ for (const file of schemaFiles) {
     if (f.type === "table" && !entities.has(f.of)) err(rel, `${at}: "of" must name a schema file in this module`);
     if (f.type === "link") {
       const [mod, ent] = String(f.to || "").split(".");
-      const ok = (mod === "core" && CORE.has(ent)) || (m && mod === m.name && entities.has(ent)) || (m && mod in (m.dependsOn || {}));
+      // Links use the schema name (hyphens become underscores): document-services → document_services.<entity>.
+      const us = (s) => s.replace(/-/g, "_");
+      const ok = (mod === "core" && CORE.has(ent)) || (m && us(mod) === us(m.name) && entities.has(ent)) || (m && Object.keys(m.dependsOn || {}).map(us).includes(us(mod)));
       if (!ok) err(rel, `${at}: link "to" must be core.<${[...CORE].join("|")}>, ${m?.name}.<entity in schema/>, or an entity of a dependsOn module`);
     }
     if (f.type === "decimal" && /fee|amount|price|cost/i.test(f.name)) err(rel, `${at}: use type "money" for amounts`);
