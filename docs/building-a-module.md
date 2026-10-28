@@ -245,32 +245,69 @@ What `ctx` gives you:
 
 ## 7. Develop, test, release
 
-```bash
-edulab new-module hostel          # create the module repo from the template
-edulab dev                        # local core + Postgres + Keycloak + a test site "demo"
-edulab install-module demo hostel # install into the test site; re-run after schema changes
-edulab test                       # unit tests + install-twice test + permission test
-edulab release 0.2.0              # checks, CHANGELOG entry, git tag v0.2.0
-```
+### Check while you work
 
-A tagged release goes to the control plane, which runs the marketplace checks below. If it passes, it is added to the next **bench** and reaches universities when they move to that bench.
+```bash
+node scripts/validate.mjs        # silent = OK; otherwise it lists every problem
+```
+Claude Code runs this checker after every edit (see `.claude/settings.json`).
+
+### Release a version
+
+1. Bump `version` in `manifest.json` (e.g. `0.1.0` → `0.2.0`, see the version rules in section 4).
+2. Add a `## 0.2.0` entry to `CHANGELOG.md` saying what changed.
+3. Run `node scripts/validate.mjs`, then commit and push to `main`.
+4. Tag the release and push the tag:
+   ```bash
+   git tag v0.2.0
+   git push origin v0.2.0
+   ```
+
+That is the whole submission. Within about 2 minutes the Edulab control plane sees the new tag and runs the marketplace checks (section 8) on exactly that commit:
+
+| Result | What happens | What you do |
+|---|---|---|
+| **Failed** | One or more checks failed. | Read the report, fix, bump to the next patch version (`0.2.1`) and tag again. |
+| **Waiting for review** | All checks passed. An Edulab reviewer reads the report and the changes since your last approved version. | Nothing; wait. |
+| **Rejected** | The reviewer wrote why. | Fix, bump to the next patch version and tag again. |
+| **Approved** | The version is frozen and listed in the marketplace. Universities can install it, and sites that have an older version can upgrade. | Nothing. |
+
+Until results show on your GitHub commit as a ✓ or ✗ (`edulab/marketplace`), your team lead or the reviewer shares the report with you.
+
+### Tag rules
+
+- The tag is `v` + the exact `version` in `manifest.json`: `v0.2.0` ↔ `"0.2.0"`. Anything else fails.
+- Every tag must be **newer** than the last approved version. A version number is used once: after a failure or a rejection, tag the next patch, never the same number again.
+- Never move or delete a pushed tag.
+- Removing an entity or a field needs a new **major** version (`1.x` → `2.0.0`).
+- Every module in `dependsOn` must already be approved in the marketplace.
+- Only tags like `v1.2.3` are picked up; other tags (`test`, `v1.2`) are ignored.
+
+The `edulab` command-line tool (`edulab dev`, `edulab release 0.2.0`, …) will wrap these steps; until it exists, use the commands above.
 
 ## 8. Marketplace checks
 
-Run automatically on every release. Any failure blocks it.
+Run on every release. Any failure blocks it.
 
-- [ ] `manifest.json` and every schema file are valid.
-- [ ] Installs on an empty site, and installing a second time changes nothing.
-- [ ] Upgrades from the previous released version on a site that has data.
+Running today:
+- [x] `manifest.json` and every schema file are valid (the contract checker, Edulab's own copy).
+- [x] The module name matches the registered repo; the tag matches the manifest version and is newer than the last approved one.
+- [x] Nothing removed without a major version; every dependency is in the marketplace.
+- [x] Installs on an empty site, and installing a second time changes nothing.
+- [x] Upgrades from the last approved version.
+- [x] No secrets in the code (secret scan).
+- [x] `README.md` exists; `CHANGELOG.md` has an entry for this version.
+
+Coming next (the reviewer checks these by hand until then):
+- [ ] Upgrades on a site that has data.
 - [ ] Every entity has `permissions`; no role has access that isn't written down.
 - [ ] No import of another module's code, no query on another module's tables.
 - [ ] Only declared events are emitted or handled.
 - [ ] Personal-data fields are marked `pii`.
-- [ ] No secrets, university names or hard-coded URLs in the code.
+- [ ] No university names or hard-coded URLs in the code.
 - [ ] Tests pass.
 - [ ] Security scan and automated VAPT pass.
 - [ ] `README.md` has every section of the template filled in.
-- [ ] `CHANGELOG.md` has an entry for this version.
 
 ## 9. Uninstall
 

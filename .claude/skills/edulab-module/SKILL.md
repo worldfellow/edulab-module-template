@@ -51,11 +51,11 @@ Never: open DB connections, read env vars, resolve the university yourself.
 ## Events
 Name `<module>.<entity>.<past-verb>`. Payload = IDs + few needed fields. Delivered at least once → handlers idempotent. Never cross universities. No dependency cycles: if A depends on B, B must not listen to A — A calls B's API (`ctx.call("b.createDemand", …)`).
 
-## Commands
-`edulab dev` local stack + site "demo" · `edulab install-module demo <module>` (re-run after schema change) · `edulab test` · `edulab release <version>`.
+## Release (docs/building-a-module.md §7)
+Check: `node scripts/validate.mjs` (silent = OK). Release: bump `version` in manifest.json → add `## <version>` to CHANGELOG.md → commit + push main → `git tag v<version> && git push origin v<version>`. The control plane picks the tag up in ~2 min, runs the checks; result = failed / waiting for review / rejected / approved. Tag = `v` + exact manifest version, always newer than the last approved; a used number is never reused (fix → next patch); never move/delete a tag; removing an entity/field needs a major version; dependencies must already be approved. `edulab` CLI commands (`edulab dev`, `edulab release`) don't exist yet.
 
-## Release checks (all must pass)
-valid manifest + schemas · install twice = no change · upgrade from previous version with data · every entity has permissions · no cross-module imports/queries · only declared events · pii marked · no secrets/university names/URLs · tests pass · security scan + VAPT · README sections filled · CHANGELOG entry.
+## Release checks
+Automatic now: valid manifest + schemas · name = registered repo · tag = manifest version, newer · nothing removed without major · dependencies approved · install twice = no change · upgrade from last approved · secret scan · README exists · CHANGELOG entry. Reviewer checks by hand for now: every entity has permissions · no cross-module imports/queries · only declared events · pii marked · no university names/URLs · tests · VAPT · README sections filled.
 
 ## Permissions actions
 `read` `create` `update` `delete` `import` `export`. `import`/`export` enable the automatic Data Import/Export screens (template download → upload → preview → background job → per-row log → history) for that entity. No module code needed.
