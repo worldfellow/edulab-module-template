@@ -120,6 +120,18 @@ for (const file of schemaFiles) {
       if (fields.find((x) => x.name === first)?.type !== "link") err(rel, `role "${role}": scope must start with a link field (e.g. "college" or "room.hostel")`);
     }
   }
+  // digilocker: DigiLocker documents -> file fields (docs/building-a-module.md, "Verify with DigiLocker")
+  if (s.digilocker) {
+    const docsOk = ["aadhaar", "apaar", "class_x", "class_xii"];
+    for (const [k, fname] of Object.entries(s.digilocker)) {
+      const f = fields.find((x) => x.name === fname);
+      if (k === "verified") { if (f?.type !== "check") err(rel, "digilocker: verified must name a check field"); continue; }
+      if (!docsOk.includes(k)) { err(rel, `digilocker: unknown document "${k}" (use ${docsOk.join(", ")}, verified)`); continue; }
+      if (f?.type !== "file") err(rel, `digilocker.${k}: must name a file field`);
+      else if (f.accept && !f.accept.includes("pdf")) err(rel, `digilocker.${k}: field ${fname} must accept pdf`);
+    }
+    if (!Object.keys(s.digilocker).some((k) => docsOk.includes(k))) err(rel, "digilocker: map at least one document");
+  }
   // workflow: a select field that changes only through declared actions (docs/building-a-module.md, "Workflows")
   const w = s.workflow;
   if (w) {
