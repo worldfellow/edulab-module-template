@@ -232,7 +232,7 @@ What `ctx` gives you:
 | `ctx.emit()` | Publish an event declared in `emits`. |
 | `ctx.jobs.enqueue()` | Run a job in `src/jobs/` in the background. |
 | `ctx.notify()` | Email / SMS / WhatsApp through the central communication service. |
-| `ctx.log` | Logs tagged with site and module. |
+| `ctx.log` | Logs tagged with site and module. Shows in your terminal while you develop; on live sites, use errors (below), not logs. |
 
 ### Events
 
@@ -282,6 +282,30 @@ Until results show on your GitHub commit as a ✓ or ✗ (`edulab/marketplace`),
 - Removing an entity or a field needs a new **major** version (`1.x` → `2.0.0`).
 - Every module in `dependsOn` must already be approved in the marketplace.
 - Only tags like `v1.2.3` are picked up; other tags (`test`, `v1.2`) are ignored.
+
+### Errors and crash reports (seeing what broke on live sites)
+Like crash reports in an app store: when your module fails on **any** university's site, Edulab records it and you can see it. You don't add any code for this.
+
+**While you develop:** `console.log` and `ctx.log(...)` print in your terminal as usual. A thrown error shows its full stack trace there.
+
+**On live sites, two things are recorded automatically:**
+| What failed | Recorded as |
+|---|---|
+| One of your hooks (`on("fees.payment.received", …)`) throws | `hook` · `on("fees.payment.received")` |
+| A request to one of your entities or endpoints ends in a server error (500) | `http` · `GET /api/:mod/:ent` |
+
+Wrong input (a 400 such as "amount must be a whole number") is your module working as designed, so it is **not** recorded.
+
+Each report has: your module **version**, where it failed, the error message, the **stack trace** down to your file and line (`noticeboard/0.3.0/src/hooks.ts:4`), which sites hit it, and how many times. Reports of the same bug are grouped into **one row**, so 500 failures from one bug show up as one row with a count, not 500 alerts. A failed hook is retried up to 10 times, and each retry counts.
+
+**Where you see them:**
+1. **Your developer error link.** An Edulab admin makes one for your module (Marketplace → your module → *Developer error link*) and sends it to your team. It lists every error of **your module only**, from every site; click a row for the stack trace and the latest occurrences. Keep it private: anyone with the link can read your module's errors. If it leaks, ask for a new one, which stops the old link. The same data is available as JSON: `GET https://admin.digitalvarsity.org/api/dev/errors?module=<name>` with the header `x-error-key: <key>`, and `/api/dev/errors/<id>` for one error.
+2. **A GitHub issue on your repo** is opened the first time a new kind of error appears, with the version and stack trace. (Being switched on; until then, use the link.)
+3. The university's own admin sees a short list of what failed on their site (no stack traces) under **Error log** in their portal, so expect them to report it too.
+
+**No student data in reports.** Request bodies and record values are never stored. Emails, phone numbers, long numbers and quoted values are masked in messages (`Key (prn)=(<value>)`). Write error messages that say *what* went wrong, not *who*: `throw new Error("room has no free bed")`, never `"Arjun Verma has no bed"`.
+
+**Fixing:** reproduce it locally, fix it, then release the next patch version (`0.3.0` → `0.3.1`, see *Release a version*). After the fix is approved and sites move to it, new reports stop, and the version column shows which versions still fail.
 
 The `edulab` command-line tool (`edulab dev`, `edulab release 0.2.0`, …) will wrap these steps; until it exists, use the commands above.
 
