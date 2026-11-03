@@ -108,6 +108,33 @@ for (const file of schemaFiles) {
       if (fields.find((x) => x.name === first)?.type !== "link") err(rel, `role "${role}": scope must start with a link field (e.g. "college" or "room.hostel")`);
     }
   }
+  // workflow: a select field that changes only through declared actions (docs/building-a-module.md, "Workflows")
+  const w = s.workflow;
+  if (w) {
+    const sf = fields.find((x) => x.name === w.field);
+    if (sf?.type !== "select") err(rel, `workflow: "field" must name a select field`);
+    else {
+      const states = new Set(sf.options);
+      const roles = new Set(Object.keys(m?.roles || {}));
+      if (!states.has(w.start)) err(rel, `workflow: start "${w.start}" is not one of ${w.field}'s options`);
+      if (!Array.isArray(w.actions) || !w.actions.length) err(rel, "workflow: actions are required");
+      const seen = new Set();
+      for (const a of w.actions || []) {
+        const an = `workflow action "${a.name}"`;
+        const sl = String(a.name || "").toLowerCase().replace(/[^a-z0-9]+/g, "_");
+        if (!a.name || seen.has(sl)) err(rel, `${an}: missing or duplicate name`);
+        seen.add(sl);
+        if (!Array.isArray(a.from) || !a.from.length || !a.from.every((x) => states.has(x))) err(rel, `${an}: "from" must list ${w.field} options`);
+        if (!states.has(a.to)) err(rel, `${an}: "to" "${a.to}" is not one of ${w.field}'s options`);
+        if (!Array.isArray(a.roles) || !a.roles.length || !a.roles.every((r) => roles.has(r))) err(rel, `${an}: roles must be declared in manifest roles`);
+        if (a.comment !== undefined && !["required", "optional"].includes(a.comment)) err(rel, `${an}: comment is "required" or "optional"`);
+      }
+      for (const [st, rs] of Object.entries(w.edit || {})) {
+        if (!states.has(st)) err(rel, `workflow: edit state "${st}" is not one of ${w.field}'s options`);
+        if (!Array.isArray(rs) || !rs.every((r) => roles.has(r))) err(rel, `workflow: edit roles for "${st}" must be declared in manifest roles`);
+      }
+    }
+  }
 }
 
 if (errors.length) {
