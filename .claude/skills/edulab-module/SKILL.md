@@ -29,6 +29,9 @@ Field types: `text` `longtext` (maxLength) · `number` `decimal` (min,max) · `m
 Field keys: `name` `type` `required` `unique` `default` `pii` `min` `max` `maxLength` `options` `to` `of`.
 Core entities: `core.user` `core.student` `core.college` `core.faculty` `core.department` `core.programme` `core.subject` `core.academic_year`. Link to them, never copy them. Programme = degree programme (B.Sc. CS, has semesters); subject = one paper/course unit. Semester is a number field. Core events you may listen to: `core.student.created`, `core.student.updated`, `core.user.created`.
 
+## Files and images
+Field type "file" (accept pdf/jpg/png) or "image" (jpg/png); "accept": [...], "maxSizeMB" (default 5, max 200), "pii": true for personal documents. Upload: POST /api/<m>/<e>/<id>/files/<field> (multipart "file"). Download: GET /api/_files/<key>, only for users who may read the record. Never set a file field directly.
+
 ## Workflow (status that moves through steps)
 In the entity JSON: "workflow": { "field": "<select>", "start": "<option>", "edit": { "<state>": ["role"] }, "actions": [ { "name", "from": [...], "to", "roles": [...], "comment": "required"|"optional" } ] }.
 Never set the state field directly; it changes only via actions (POST /api/<m>/<e>/<id>/actions/<slug>). Guards: before("<entity>.<Action>", fn) in src/hooks.ts, throw to block. Event per state reached: <module>.<entity>.<state_slug> (declare in emits).

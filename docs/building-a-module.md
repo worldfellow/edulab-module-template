@@ -201,6 +201,34 @@ Your module connects as its own database role, and the database itself enforces 
 
 `link` fields are real foreign keys, so a link always points at a row that exists, and screens can join across sections.
 
+### Files and images (uploads)
+Marksheets, ID proofs, photos, scanned answer booklets: declare a `file` or `image` field.
+
+```json
+{ "name": "marksheet", "type": "file", "accept": ["pdf", "jpg", "png"], "maxSizeMB": 10, "pii": true },
+{ "name": "photo", "type": "image", "maxSizeMB": 2, "pii": true },
+{ "name": "answer_booklet", "type": "file", "accept": ["pdf"], "maxSizeMB": 150 }
+```
+
+| Key | Default | Meaning |
+|---|---|---|
+| `accept` | `file`: pdf, jpg, png · `image`: jpg, png | Allowed kinds. Checked by the file's **content**, not its name: a `.pdf` that isn't a PDF is refused. |
+| `maxSizeMB` | 5 | Largest file for this field, up to **200**. Keep it small for photos; raise it for scans (an OSM booklet: 150). |
+
+- **Uploading:** on the form, a *Files* box appears once the record is saved: choose a file, *Upload* (or *Replace*). API:
+  `POST /api/<module>/<entity>/<id>/files/<field>` as `multipart/form-data` with the file in `file`; it returns the updated record.
+- **Downloading:** `/files/<key>` in the portal, `GET /api/_files/<key>` for apps. The field's value is that key.
+  Downloads can resume (HTTP Range).
+- **Never public.** A file is served only to someone who may read the record it was uploaded to (roles, `onlyOwn`,
+  `scope`). There is no public link to share or guess.
+- **Only by uploading.** A file field can't be set by typing a key in JSON or CSV, so a record can't borrow another
+  record's file.
+- **Workflows apply.** Uploading counts as editing: it is blocked when the record is locked in its state. A guard can
+  require a file before a step: `if (!application.marksheet) throw new Error("Upload the marksheet first")`.
+- Personal documents get `"pii": true`.
+
+Not yet: Word/Excel files, virus scanning, files larger than 200 MB (resumable uploads), reading file content from hooks.
+
 ### Workflows: steps, approvals and who may move a record forward
 Most records go through steps: an application is submitted, documents are checked, an offer is made. Declare the
 steps in the schema file and the platform enforces them. You don't write workflow code.
