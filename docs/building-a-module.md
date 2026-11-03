@@ -226,8 +226,15 @@ Marksheets, ID proofs, photos, scanned answer booklets: declare a `file` or `ima
 - **Workflows apply.** Uploading counts as editing: it is blocked when the record is locked in its state. A guard can
   require a file before a step: `if (!application.marksheet) throw new Error("Upload the marksheet first")`.
 - Personal documents get `"pii": true`.
+- **Big files and weak connections:** the portal uploads in 5 MB pieces. If the connection drops it retries by
+  itself; if the page is closed or reloaded, choosing the same file again continues where it stopped, with a progress
+  bar. Apps can do the same with any [tus](https://tus.io) client: endpoint `/_upload/`, metadata `entity`
+  (`<module>/<entity>`), `id`, `field`, `filename`. The same checks apply before any bytes are accepted.
+- **Photos are shrunk in the browser** before upload: at most 1600 px on the longest side for `image` fields
+  (2400 px for photos of documents in `file` fields), JPEG quality 85. A 9 MB phone photo becomes about 300 KB, and
+  hidden data in phone photos (location, camera) is removed. PDFs are never changed.
 
-Not yet: Word/Excel files, virus scanning, files larger than 200 MB (resumable uploads), reading file content from hooks.
+Not yet: Word/Excel files, virus scanning, files larger than 200 MB, reading file content from hooks.
 
 ### Workflows: steps, approvals and who may move a record forward
 Most records go through steps: an application is submitted, documents are checked, an offer is made. Declare the
