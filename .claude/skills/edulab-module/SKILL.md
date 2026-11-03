@@ -38,6 +38,9 @@ Stored values (options, states, API, CSV, events) stay English; translations in 
 ## Notifications
 manifest "notifies": ["email","whatsapp"]; in on() hooks: ctx.notify.email({ to, subject, html } | { to, template, variables }), ctx.notify.whatsapp({ to, template, params }). Queued in the hook transaction, sent after commit, retried. WhatsApp = Meta-approved template only; no SMS. Dev redirects to a test address.
 
+## Verify with DigiLocker
+Entity JSON "digilocker": { "aadhaar"|"apaar"|"class_x"|"class_xii": "<file field accepting pdf>", "verified": "<check field>" }. Platform adds the button, fetches signed PDFs into the fields, ticks verified (never settable by users). Guard on the verified field.
+
 ## Files and images
 Field type "file" (accept pdf/jpg/png) or "image" (jpg/png); "accept": [...], "maxSizeMB" (default 5, max 200), "pii": true for personal documents. Upload: POST /api/<m>/<e>/<id>/files/<field> (multipart "file"). Download: GET /api/_files/<key>, only for users who may read the record. Never set a file field directly.
 

@@ -236,6 +236,36 @@ Marksheets, ID proofs, photos, scanned answer booklets: declare a `file` or `ima
 
 Not yet: Word/Excel files, virus scanning, files larger than 200 MB, reading file content from hooks.
 
+### Verify with DigiLocker
+Instead of asking students to upload scans, fetch the documents straight from their DigiLocker, signed by the issuing
+government department. Map DigiLocker documents to your file fields in the entity JSON:
+
+```json
+"digilocker": {
+  "aadhaar": "id_proof",
+  "apaar": "apaar_card",
+  "class_x": "marksheet_10",
+  "class_xii": "marksheet_12",
+  "verified": "documents_verified"
+}
+```
+
+| Key | Document |
+|---|---|
+| `aadhaar` | Aadhaar card (PDF) |
+| `apaar` | APAAR ID (Academic Bank of Credits) |
+| `class_x` / `class_xii` | Class X / Class XII marksheet |
+| `verified` | Optional `check` field ticked when every mapped document has arrived |
+
+Each mapped field must be a `file` field that accepts PDF. Map only what you need.
+
+What happens: the record shows **Verify with DigiLocker**. The student signs in to DigiLocker (their own OTP) and
+allows sharing; Bench fetches the signed PDFs and stores them in your fields like uploads (private, content-checked,
+in the record's history) and ticks `verified`. If the tab is closed early, Bench finishes in the background.
+Nobody can tick `verified` by hand, so a workflow guard can rely on it:
+`if (!application.documents_verified) throw new Error("Verify the documents with DigiLocker first")`.
+Workflow locks apply. No student names or numbers are sent to the verification service.
+
 ### Workflows: steps, approvals and who may move a record forward
 Most records go through steps: an application is submitted, documents are checked, an offer is made. Declare the
 steps in the schema file and the platform enforces them. You don't write workflow code.
