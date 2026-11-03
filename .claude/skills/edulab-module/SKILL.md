@@ -51,6 +51,9 @@ Never: open DB connections, read env vars, resolve the university yourself.
 ## Events
 Name `<module>.<entity>.<past-verb>`. Payload = IDs + few needed fields. Delivered at least once → handlers idempotent. Never cross universities. No dependency cycles: if A depends on B, B must not listen to A — A calls B's API (`ctx.call("b.createDemand", …)`).
 
+## Try before release (branch preview, §7)
+Push to the agreed branch → in ~2 min it is checked + installed on the team's dev site only (<team>.dev.digitalvarsity.org). No version bump/tag/review. Failing commit = site keeps the last working one.
+
 ## Release (docs/building-a-module.md §7)
 Check: `node scripts/validate.mjs` (silent = OK). Release: bump `version` in manifest.json → add `## <version>` to CHANGELOG.md → commit + push main → `git tag v<version> && git push origin v<version>`. The control plane picks the tag up in ~2 min, runs the checks; result = failed / waiting for review / rejected / approved. Tag = `v` + exact manifest version, always newer than the last approved; a used number is never reused (fix → next patch); never move/delete a tag; removing an entity/field needs a major version; dependencies must already be approved. `edulab` CLI commands (`edulab dev`, `edulab release`) don't exist yet.
 

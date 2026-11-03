@@ -252,6 +252,24 @@ node scripts/validate.mjs        # silent = OK; otherwise it lists every problem
 ```
 Claude Code runs this checker after every edit (see `.claude/settings.json`).
 
+### Try it on a dev site before releasing (branch previews)
+You don't need to release to see your module working. Edulab gives your team a dev site (for example
+`https://hostel.dev.digitalvarsity.org`) and turns on a **branch preview** there for your module and branch.
+
+1. Push to your branch: `git push origin main` (or any branch you agreed with Edulab).
+2. Within about **2 minutes** the dev bench fetches that commit, runs the contract checker, and installs it on
+   **your dev site only**: new tables and fields, screens, API and hooks.
+3. Open your dev site and try it. Every other site keeps the approved version.
+
+| You see | Meaning |
+|---|---|
+| The change on your dev site | The preview is live (on GitHub: a ✓ `edulab/preview` on the commit) |
+| No change after 3 minutes | The commit failed the checker or the install. Ask for the error, or check the ✗ on GitHub. Fix it and push again. |
+
+A preview is not a release. It needs no version bump, tag or review, and it never reaches prod. When it works,
+release it the normal way (below). Fields you add in a preview stay in the dev site's database; to start clean,
+ask for the dev site to be reset.
+
 ### Release a version
 
 1. Bump `version` in `manifest.json` (e.g. `0.1.0` → `0.2.0`, see the version rules in section 4).
