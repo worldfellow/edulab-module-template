@@ -313,6 +313,7 @@ What `ctx` gives you:
 | `ctx.jobs.enqueue()` | Run a job in `src/jobs/` in the background. |
 | `ctx.notify()` | Email / SMS / WhatsApp through the central communication service. |
 | `ctx.log` | Logs tagged with site and module. Shows in your terminal while you develop; on live sites, use errors (below), not logs. |
+| `ctx.notify.email({...})`, `ctx.notify.whatsapp({...})` | Send an email or WhatsApp message through Edulab's messaging service (Omni). See *Notifications* below. |
 
 ### Events
 
@@ -322,6 +323,37 @@ What `ctx` gives you:
 - The payload holds IDs and the few fields a listener needs, not whole records.
 - Events are delivered **at least once**. Handlers must be safe to run twice.
 - An event never leaves the university it was raised in.
+
+### Notifications (email, WhatsApp)
+Tell people when something happens: the host when their visitor arrives, a student when documents are verified.
+Declare the channels in `manifest.json`, then send from a hook:
+
+```json
+"notifies": ["email", "whatsapp"]
+```
+```ts
+on("admission.application.documents_verified", async (ctx, event) => {
+  const [app] = await ctx.db.admission.application.find({ id: event.id });
+  await ctx.notify.email({
+    to: app.email,
+    subject: "Your documents are verified",
+    html: `<p>Dear ${app.first_name}, your documents are verified. Please pay the admission fee by …</p>`,
+  });
+  // or a template designed in Omni: ctx.notify.email({ to, template: "adm-docs-verified", variables: { name: app.first_name } })
+  await ctx.notify.whatsapp({ to: app.mobile, template: "docs_verified", params: [app.first_name] });
+});
+```
+
+- **Sent only if the hook succeeds.** The message is queued in the same transaction as your hook's changes, and sent
+  right after they are saved. If your hook fails, nothing is sent. Failed sends are retried (5 attempts).
+- **WhatsApp needs a Meta-approved template**: ask Edulab to get it approved in Omnichannel; `params` fill its
+  placeholders in order. SMS is not available.
+- **The university sees everything** that was sent, to whom and whether it was delivered, under *Notifications* in
+  their portal.
+- **Dev and test sites never message real people.** On the dev server every message goes to Edulab's test address;
+  the log shows the real recipient and where it actually went. Real sending is switched on only for a university's
+  live site.
+- Use recipients from the record (`app.email`), never addresses typed into a free-text field by someone else.
 
 ## 7. Develop, test, release
 

@@ -29,6 +29,9 @@ Field types: `text` `longtext` (maxLength) · `number` `decimal` (min,max) · `m
 Field keys: `name` `type` `required` `unique` `default` `pii` `min` `max` `maxLength` `options` `to` `of`.
 Core entities: `core.user` `core.student` `core.college` `core.faculty` `core.department` `core.programme` `core.subject` `core.academic_year`. Link to them, never copy them. Programme = degree programme (B.Sc. CS, has semesters); subject = one paper/course unit. Semester is a number field. Core events you may listen to: `core.student.created`, `core.student.updated`, `core.user.created`.
 
+## Notifications
+manifest "notifies": ["email","whatsapp"]; in on() hooks: ctx.notify.email({ to, subject, html } | { to, template, variables }), ctx.notify.whatsapp({ to, template, params }). Queued in the hook transaction, sent after commit, retried. WhatsApp = Meta-approved template only; no SMS. Dev redirects to a test address.
+
 ## Files and images
 Field type "file" (accept pdf/jpg/png) or "image" (jpg/png); "accept": [...], "maxSizeMB" (default 5, max 200), "pii": true for personal documents. Upload: POST /api/<m>/<e>/<id>/files/<field> (multipart "file"). Download: GET /api/_files/<key>, only for users who may read the record. Never set a file field directly.
 
