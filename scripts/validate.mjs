@@ -84,6 +84,13 @@ for (const file of schemaFiles) {
       const ok = (mod === "core" && CORE.has(ent)) || (m && us(mod) === us(m.name) && entities.has(ent)) || (m && Object.keys(m.dependsOn || {}).map(us).includes(us(mod)));
       if (!ok) err(rel, `${at}: link "to" must be core.<${[...CORE].join("|")}>, ${m?.name}.<entity in schema/>, or an entity of a dependsOn module`);
     }
+    if (f.type === "file" || f.type === "image") {
+      const kinds = f.type === "image" ? ["jpg", "png"] : ["pdf", "jpg", "png"];
+      if (f.accept !== undefined && !(Array.isArray(f.accept) && f.accept.length && f.accept.every((k) => kinds.includes(k))))
+        err(rel, `${at}: accept must list some of ${kinds.join(", ")}`);
+      if (f.maxSizeMB !== undefined && !(Number.isFinite(f.maxSizeMB) && f.maxSizeMB > 0 && f.maxSizeMB <= 200))
+        err(rel, `${at}: maxSizeMB must be a number from 1 to 200`);
+    }
     if (f.type === "decimal" && /fee|amount|price|cost/i.test(f.name)) err(rel, `${at}: use type "money" for amounts`);
     if (["email", "phone"].includes(f.type) && !f.pii) err(rel, `${at}: ${f.type} is personal data, add "pii": true`);
   }
