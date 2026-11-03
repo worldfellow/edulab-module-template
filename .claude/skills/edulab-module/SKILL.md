@@ -29,6 +29,10 @@ Field types: `text` `longtext` (maxLength) · `number` `decimal` (min,max) · `m
 Field keys: `name` `type` `required` `unique` `default` `pii` `min` `max` `maxLength` `options` `to` `of`.
 Core entities: `core.user` `core.student` `core.college` `core.faculty` `core.department` `core.programme` `core.subject` `core.academic_year`. Link to them, never copy them. Programme = degree programme (B.Sc. CS, has semesters); subject = one paper/course unit. Semester is a number field. Core events you may listen to: `core.student.created`, `core.student.updated`, `core.user.created`.
 
+## Workflow (status that moves through steps)
+In the entity JSON: "workflow": { "field": "<select>", "start": "<option>", "edit": { "<state>": ["role"] }, "actions": [ { "name", "from": [...], "to", "roles": [...], "comment": "required"|"optional" } ] }.
+Never set the state field directly; it changes only via actions (POST /api/<m>/<e>/<id>/actions/<slug>). Guards: before("<entity>.<Action>", fn) in src/hooks.ts, throw to block. Event per state reached: <module>.<entity>.<state_slug> (declare in emits).
+
 ## Permissions
 Role entry is `["read",…]` or `{ "actions": […], "onlyOwn": "<link field>", "scope": "<link field or path>" }`.
 - `onlyOwn`: row visible only if the link points at the current user — `core.user`, `core.student` (student.user = me), or an entity of this module that has a `user` link field (employee, evaluator, candidate…). Parents see their linked students' rows.

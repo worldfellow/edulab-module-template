@@ -201,6 +201,51 @@ Your module connects as its own database role, and the database itself enforces 
 
 `link` fields are real foreign keys, so a link always points at a row that exists, and screens can join across sections.
 
+### Workflows: steps, approvals and who may move a record forward
+Most records go through steps: an application is submitted, documents are checked, an offer is made. Declare the
+steps in the schema file and the platform enforces them. You don't write workflow code.
+
+```json
+"workflow": {
+  "field": "status",
+  "start": "Draft",
+  "edit": { "Draft": ["admission:applicant"], "Sent back": ["admission:applicant"] },
+  "actions": [
+    { "name": "Submit",           "from": ["Draft", "Sent back"], "to": "Submitted",          "roles": ["admission:applicant"] },
+    { "name": "Verify documents", "from": ["Submitted"],          "to": "Documents verified", "roles": ["admission:verifier"] },
+    { "name": "Send back",        "from": ["Submitted"],          "to": "Sent back",          "roles": ["admission:verifier"], "comment": "required" },
+    { "name": "Reject",           "from": ["Submitted"],          "to": "Rejected",           "roles": ["admission:verifier"], "comment": "required" },
+    { "name": "Make offer",       "from": ["Documents verified"], "to": "Offered",            "roles": ["admission:admin"] }
+  ]
+}
+```
+
+| Key | Meaning |
+|---|---|
+| `field` | A `select` field; its `options` are the states |
+| `start` | The state every new record starts in |
+| `actions` | Each step: `name` (the button), `from` (states it can be used in), `to`, `roles` who may use it, optional `comment`: `"required"` or `"optional"` |
+| `edit` | Optional. Which roles may edit the record's other fields in each state. States not listed are read-only for everyone. Leave `edit` out to never lock. |
+
+What the platform does:
+1. **The state field is never typed in.** It changes only through actions. Create/update calls that try to set it are rejected (Data Import may set it, for migrating old records).
+2. **Buttons per role.** On the form, each user sees only the actions their roles may use in the record's current state, with a comment box where needed. The same actions are in the API: `POST /api/<module>/<entity>/<id>/actions/<action>` (the action name in lower case with dashes, e.g. `verify-documents`), body `{ "comment": "…" }`.
+3. **Locked fields per state** (`edit`). After *Submit*, the applicant can't change the application.
+4. **Timeline.** Every step is recorded (who, when, from, to, comment) and shown on the form; `GET /api/<module>/<entity>/<id>/timeline`.
+5. **An event per state reached:** `<module>.<entity>.<state>`, e.g. `admission.application.documents_verified`. Declare it in `events.emits` and other modules can react: Fees raises the fee demand, notifications go out.
+
+**Rules JSON can't express go in a guard** in `src/hooks.ts`. Throw an error to block the step; the message is shown to the user:
+```ts
+import { before } from "@edulab/core";
+before("application.Submit", async (ctx, application) => {
+  const docs = await ctx.db.admission.application_document.find({ application: application.id });
+  if (docs.length < 4) throw new Error("Upload all 4 mandatory documents before submitting");
+});
+```
+`before("<entity>.<Action name>")` must name a declared action. Document-by-document checking works the same way: give
+`application_document` its own small workflow (Pending → Verified / Rejected), and guard *Verify documents* on the
+application until every document is Verified.
+
 ## 6. Code: the parts the schema can't do
 
 Every piece of module code receives a `ctx` from the core. You never open a database connection, read an env variable or work out the university yourself.
