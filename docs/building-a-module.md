@@ -283,6 +283,24 @@ Until results show on your GitHub commit as a ✓ or ✗ (`edulab/marketplace`),
 - Every module in `dependsOn` must already be approved in the marketplace.
 - Only tags like `v1.2.3` are picked up; other tags (`test`, `v1.2`) are ignored.
 
+### Dev and prod: where your module runs
+Edulab runs two separate copies of the platform. They have different databases, logins and marketplaces.
+
+| | **Dev** | **Prod** |
+|---|---|---|
+| Who uses it | Developers and testers | Universities: real students, real fees |
+| Address | `<site>.dev.digitalvarsity.org` | `<site>.digitalvarsity.org` |
+| Your release | Every tag you push lands here first: checks, review, approval | Only versions approved on dev **and** promoted by Edulab |
+| Data | Sample data; sites can be thrown away | Real data, backed up nightly |
+
+1. You push a tag, and the release is checked and reviewed on **dev** (section 8).
+2. Once approved, it is installed on a dev site and tested there, by you and by Edulab's testers.
+3. Edulab **promotes** it to prod. Universities then upgrade to it from their control plane.
+
+You never release straight to prod, and nothing on dev can touch prod data. A version is promoted unchanged: what
+was approved on dev is exactly what runs on prod. Errors (below) are recorded separately on dev and on prod, so
+you get one developer error link for each.
+
 ### Errors and crash reports (seeing what broke on live sites)
 Like crash reports in an app store: when your module fails on **any** university's site, Edulab records it and you can see it. You don't add any code for this.
 
