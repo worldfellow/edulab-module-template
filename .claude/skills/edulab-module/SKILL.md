@@ -29,6 +29,12 @@ Field types: `text` `longtext` (maxLength) · `number` `decimal` (min,max) · `m
 Field keys: `name` `type` `required` `unique` `default` `pii` `min` `max` `maxLength` `options` `to` `of`.
 Core entities: `core.user` `core.student` `core.college` `core.faculty` `core.department` `core.programme` `core.subject` `core.academic_year`. Link to them, never copy them. Programme = degree programme (B.Sc. CS, has semesters); subject = one paper/course unit. Semester is a number field. Core events you may listen to: `core.student.created`, `core.student.updated`, `core.user.created`.
 
+## Accessibility (required: IS 17802 / WCAG 2.1 AA)
+Platform screens are accessible; keep it so: plain-word labels for every field/entity, workflow actions as verbs, guard errors say what to fix, no meaning by colour alone, accessible email HTML (headings, alt text). Test with keyboard only and on a phone.
+
+## Languages (coming)
+Stored values (options, states, API, CSV, events) stay English; translations in i18n/<lang>.json mirror the schema (label, fields.<f>.label/options, actions); status machine-draft|reviewed. Keep option values stable; write simple English labels.
+
 ## Notifications
 manifest "notifies": ["email","whatsapp"]; in on() hooks: ctx.notify.email({ to, subject, html } | { to, template, variables }), ctx.notify.whatsapp({ to, template, params }). Queued in the hook transaction, sent after commit, retried. WhatsApp = Meta-approved template only; no SMS. Dev redirects to a test address.
 

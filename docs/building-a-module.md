@@ -355,6 +355,56 @@ on("admission.application.documents_verified", async (ctx, event) => {
   live site.
 - Use recipients from the record (`app.email`), never addresses typed into a free-text field by someone else.
 
+### Accessibility: everyone must be able to use it
+Indian law requires university portals to be usable by people with disabilities: the RPwD Rules (rule 15, amended
+2023) make **IS 17802** (equivalent to **WCAG 2.1 level AA**) mandatory, the UGC accessibility guidelines apply it to
+universities, and **GIGW 3.0** adds the government website rules. Bench builds this into every screen it generates;
+your module keeps it that way by describing things clearly.
+
+**What the platform already does for every module**
+- Screens work with the keyboard alone, start with *Skip to main content*, and have one page heading and labelled navigation.
+- Every field is announced with its label; required fields are marked for screen readers; a failed save keeps what the user typed and lists each problem with a link to the field.
+- Colours meet contrast rules on every theme (the theme checker refuses colours that don't); focus is always visible.
+- On phones, lists become cards, buttons are large enough to tap, and Save stays at the bottom of the screen.
+- Text can be enlarged (A / A+ / A++ in the footer, or browser zoom to 200 %) without losing content.
+- Upload progress and errors are announced; Delete asks for confirmation.
+- Every site has a public **Accessibility statement**, **Screen reader access** page and **Help** page (footer links).
+
+**What you must do in your module**
+
+| Do | Why |
+|---|---|
+| Give every field and entity a clear `label` in plain words ("Date of birth", not "dob_dt") | Screen readers read the label aloud; it's also the column title on phones |
+| Name workflow actions as verbs ("Verify documents", "Send back") | They become buttons; a button must say what it does |
+| Write guard errors that say what to fix: `"Upload the marksheet before submitting"` | Shown to the user and read by screen readers |
+| Don't make meaning depend on colour or symbols alone; option names carry the meaning ("Rejected", not "Red") | Colour-blind and screen reader users |
+| In emails you send (`ctx.notify.email`), use headings and real text, not text inside images; give images `alt` text | Emails must be accessible too |
+| Don't put essential instructions only inside an uploaded PDF or image | Scans are not readable by screen readers |
+
+Check your module on your dev site with the keyboard only (Tab, Shift+Tab, Enter, Space) and on a phone. An automatic
+accessibility check (axe-core) is being added to the marketplace checks.
+
+### Languages: Hindi, Marathi and more (coming)
+Universities will choose their languages (English plus Hindi, Marathi…), and each person picks theirs. Government sites
+must be at least bilingual (GIGW 3.0). The design is decided; the platform part is being built. What it means for you:
+
+- **Stored values never change with the language.** Option values, workflow states, the API, CSV files, events and
+  hooks stay in the English you wrote. Only what is *shown* is translated. So keep option values stable and meaningful.
+- **Your module ships translations** in `i18n/<language>.json`, mirroring your schema:
+  ```json
+  { "status": "reviewed",
+    "entities": { "visitor_pass": {
+      "label": "आगंतुक पास",
+      "fields": { "status": { "label": "स्थिति", "options": { "Waiting": "प्रतीक्षा में", "Inside": "अंदर" } } },
+      "actions": { "Allow entry": "प्रवेश दें" } } } }
+  ```
+  A missing translation shows the English text. The checker refuses a translation for a field or option that doesn't
+  exist (so renaming a field can't leave a stale translation). `status` is `machine-draft` or `reviewed`: machine
+  drafts (made with Bhashini or IndicTrans2 from your labels only, never from student data) must be reviewed by a
+  native speaker before a university switches the language on.
+- **Universities can correct a translation** for their site without waiting for your next release.
+- Until this ships: write labels in clear, simple English; avoid abbreviations and jargon, which translate badly.
+
 ## 7. Develop, test, release
 
 ### Check while you work
