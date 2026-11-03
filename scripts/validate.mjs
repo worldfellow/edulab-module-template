@@ -60,6 +60,11 @@ if (m) {
   }
 }
 
+if (m && m.notifies !== undefined) {
+  const ok = ["email", "whatsapp"];
+  if (!Array.isArray(m.notifies) || !m.notifies.every((c) => ok.includes(c)))
+    err("manifest.json", `notifies must list channels from: ${ok.join(", ")}`);
+}
 for (const file of schemaFiles) {
   const rel = `schema/${file}`;
   const s = readJson(rel);
