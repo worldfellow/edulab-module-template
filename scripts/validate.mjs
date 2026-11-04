@@ -161,6 +161,43 @@ for (const file of schemaFiles) {
   }
 }
 
+// reports/<name>.json and print/<entity>.html (the core checks the same when it loads the module)
+const fieldsOf = (ent) => { try { return JSON.parse(readFileSync(join(schemaDir, `${ent}.json`), "utf8")).fields || []; } catch { return []; } };
+const repDir = join(root, "reports");
+for (const f of existsSync(repDir) ? readdirSync(repDir).filter((x) => x.endsWith(".json")) : []) {
+  const rel = `reports/${f}`, r = readJson(rel);
+  if (!r) continue;
+  if (!IDENT.test(basename(f, ".json"))) err(rel, "file name must be lower_snake_case");
+  if (!r.title) err(rel, "title is required");
+  if (!entities.has(r.entity)) { err(rel, `entity "${r.entity}" is not in schema/`); continue; }
+  const fl = fieldsOf(r.entity), type = (n) => fl.find((x) => x.name === n)?.type;
+  const [g, bucket] = String(r.groupBy ?? "").split(":");
+  if (r.groupBy !== undefined && !["text", "select", "link", "check", "date", "datetime", "email", "phone", "number"].includes(type(g))) err(rel, `groupBy "${g}" is not a groupable field`);
+  if (bucket && !(["day", "month", "year"].includes(bucket) && ["date", "datetime"].includes(type(g)))) err(rel, `groupBy "${r.groupBy}": only date fields take :day, :month or :year`);
+  if (!Array.isArray(r.measures) || !r.measures.length) err(rel, 'measures must list at least one { "fn": "count" }');
+  for (const ms of r.measures || []) {
+    if (!["count", "sum", "avg", "min", "max"].includes(ms.fn)) err(rel, `measure fn "${ms.fn}" must be count, sum, avg, min or max`);
+    else if (ms.fn !== "count" && !["number", "money", "decimal"].includes(type(ms.field))) err(rel, `${ms.fn} needs a number, money or decimal field`);
+  }
+  for (const n of r.filters || []) if (!["select", "link", "check", "date", "datetime"].includes(type(n))) err(rel, `filter "${n}" must be a select, link, check, date or datetime field`);
+  for (const n of Object.keys(r.where || {})) if (!["select", "check", "link", "text", "number"].includes(type(n))) err(rel, `where "${n}" must be a select, check, link, text or number field`);
+}
+const printDir = join(root, "print");
+for (const f of existsSync(printDir) ? readdirSync(printDir).filter((x) => x.endsWith(".html")) : []) {
+  const rel = `print/${f}`, ent = basename(f, ".html");
+  if (!entities.has(ent)) { err(rel, `name the file after an entity in schema/ (no "${ent}")`); continue; }
+  const html = readFileSync(join(printDir, f), "utf8");
+  if (/<script|\son[a-z]+\s*=|javascript:/i.test(html)) err(rel, "no scripts or event handlers in print formats");
+  const stack = [ent];
+  for (const [, kind, name] of html.matchAll(/\{\{\s*([#/]?)([a-z][a-z0-9_.]*)\s*\}\}/g)) {
+    const cur = fieldsOf(stack[stack.length - 1]);
+    if (kind === "#") { const t = cur.find((x) => x.name === name && x.type === "table"); if (!t) err(rel, `{{#${name}}} is not a table field`); stack.push(t?.of || ent); }
+    else if (kind === "/") { if (stack.length > 1) stack.pop(); else err(rel, `{{/${name}}} without {{#${name}}}`); }
+    else if (!["site.name", "today", "id"].includes(name) && !cur.some((x) => x.name === name && x.type !== "table")) err(rel, `{{${name}}} is not a field of ${stack[stack.length - 1]}`);
+  }
+  if (stack.length > 1) err(rel, "a {{#…}} section is not closed");
+}
+
 if (errors.length) {
   console.error(`Edulab module contract: ${errors.length} problem(s)\n- ${errors.join("\n- ")}`);
   process.exit(2);

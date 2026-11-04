@@ -21,7 +21,9 @@ This repo is ONE module for the Edulab Bench platform. It installs per universit
   - the REST API `/api/<module>/<entity>` (list, get, create, patch, delete), with permissions applied per row;
   - the screens `/m/<module>/<entity>` (list and form);
   - Data Import (CSV template, preview, per-row results);
-  - change history when `trackChanges` is set.
+  - change history when `trackChanges` is set;
+  - Print and PDF for every record (built-in layout, or your `print/<entity>.html`).
+- **Reports** = `reports/<name>.json` (group + count/sum, filters, `"dashboard": true` for a home-page card). Chart, table, CSV and PDF are generated; never hand-write report SQL or pages.
 - **Events:** a write emits `<module>.<entity>.created` etc. into `platform.outbox`. The core delivers each event at least once to every module that declares it in `listens` and registers `on(event, handler)` in `src/hooks.ts` (`import { on } from "@edulab/core"`). Handlers must be idempotent.
 - **Money** is paise (integer) in the API, the database and CSV imports. Screens show and accept rupees.
 - **Other modules:** link to them only through a declared `dependsOn` and their tables' ids, or react to their events. Never read their tables with SQL or import their code.
@@ -34,7 +36,7 @@ This repo is ONE module for the Edulab Bench platform. It installs per universit
 ## Layout
 - `manifest.json` — name, version, dependsOn, roles, events, settings
 - `schema/<entity>.json` — one per table; the core generates table, API, screens, permissions, migrations
-- `fixtures/` default data · `src/hooks.ts` event handlers · `src/api/` extra endpoints · `src/jobs/` background jobs · `pages/` custom screens · `migrations/` data moves only · `import/` mappers from the old Edulab product (only if this module replaces one) · `tests/`
+- `fixtures/` default data · `src/hooks.ts` event handlers · `src/api/` extra endpoints · `src/jobs/` background jobs · `reports/` reports + dashboard cards · `print/` print formats · `pages/` custom screens · `migrations/` data moves only · `import/` mappers from the old Edulab product (only if this module replaces one) · `tests/`
 - `README.md` = marketplace page (fill every section) · `CHANGELOG.md` one entry per version
 
 ## Rules (review rejects violations)

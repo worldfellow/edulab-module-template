@@ -38,6 +38,12 @@ Stored values (options, states, API, CSV, events) stay English; translations in 
 ## Notifications
 manifest "notifies": ["email","whatsapp"]; in on() hooks: ctx.notify.email({ to, subject, html } | { to, template, variables }), ctx.notify.whatsapp({ to, template, params }). Queued in the hook transaction, sent after commit, retried. WhatsApp = Meta-approved template only; no SMS. Dev redirects to a test address.
 
+## Reports and dashboard
+reports/<name>.json: { "title", "entity": "<own entity>", "groupBy"?: "<field>" | "<date field>:day|month|year", "measures": [{ "fn": "count" } | { "fn": "sum|avg|min|max", "field": "<number|money|decimal>" }, "label"?], "filters"?: [select/link/check/date/datetime fields], "where"?: { field: value }, "chart"?: "bar"|"none", "dashboard"?: true }. Viewer's row permissions apply. Screen /r/<m>/<name>; API GET /api/_reports/<m>/<name>[/csv]; PDF /r/<m>/<name>/pdf; date filters <field>_from/_to.
+
+## Print formats and PDF
+print/<entity>.html (optional; default prints every field). {{field}} formatted + escaped (image field = picture), {{#table_field}}…{{/table_field}} loops child rows, {{site.name}} {{id}} {{today}}. Plain HTML/CSS (A4; classes kv, lines); no scripts/handlers/external URLs. /m/<m>/<e>/<id>/print and /pdf.
+
 ## Verify with DigiLocker
 Entity JSON "digilocker": { "aadhaar"|"apaar"|"class_x"|"class_xii": "<file field accepting pdf>", "verified": "<check field>" }. Platform adds the button, fetches signed PDFs into the fields, ticks verified (never settable by users). Guard on the verified field.
 

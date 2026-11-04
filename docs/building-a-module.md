@@ -47,7 +47,9 @@ hostel/
 ├── src/
 │   ├── hooks.ts         Event handlers (the events listed under "listens")
 │   ├── api/             Extra endpoints beyond the automatic ones
-│   └── jobs/            Background jobs (reports, bulk actions)
+│   └── jobs/            Background jobs (bulk actions)
+├── reports/             Reports and dashboard cards, one JSON file each (see "Reports and the dashboard")
+├── print/               Print formats: <entity>.html for receipts, passes, hall tickets (see "Print formats and PDF")
 ├── pages/               Custom screens beyond the automatic list/form screens
 ├── migrations/          Only for data moves the schema can't express
 ├── import/              Mappers that bring data in from the old Edulab product (see section 10)
@@ -310,6 +312,66 @@ before("application.Submit", async (ctx, application) => {
 `before("<entity>.<Action name>")` must name a declared action. Document-by-document checking works the same way: give
 `application_document` its own small workflow (Pending → Verified / Rejected), and guard *Verify documents* on the
 application until every document is Verified.
+
+### Reports and the dashboard
+A report counts or adds up the records of one of your entities, grouped by a field. Put one JSON file per report in
+`reports/` (the file name is the report's name). No code: the platform draws the bar chart and table, adds filters,
+CSV and PDF downloads, and lists the report under your module on the home page.
+
+```json
+// reports/visitors_by_purpose.json
+{
+  "title": "Visitors by purpose",
+  "entity": "visitor_pass",
+  "groupBy": "purpose",
+  "measures": [{ "fn": "count", "label": "Visitors" }],
+  "filters": ["status", "in_time"],
+  "dashboard": true
+}
+```
+
+| Key | What it does |
+|---|---|
+| `entity` | One of your entities. |
+| `groupBy` | Optional. A field (text, select, link, check, number, date, datetime). Dates can be bucketed: `"in_time:day"`, `":month"`, `":year"`. Without `groupBy` the report is a single number (a total). |
+| `measures` | One or more of `{"fn": "count"}` or `{"fn": "sum" \| "avg" \| "min" \| "max", "field": "<number, money or decimal field>"}`; `label` optional. Money shows in rupees. |
+| `filters` | Fields the user can filter by: select, link and check become dropdowns; date and datetime become *from* / *to* dates. |
+| `where` | Optional fixed filter, e.g. `{"status": "Inside"}` for "Inside the campus now". |
+| `chart` | `"bar"` (default) or `"none"`. |
+| `dashboard` | `true` puts the report on the university's home page as a card (the number, or a small chart). Use it for the two or three things people check every day. |
+| `description` | Optional line shown above the report. |
+
+- **Everyone sees only their own rows.** A report counts only the records the viewer may read (the same `onlyOwn`
+  / `scope` rules as the list screen). A warden's report covers their hostel; a student's covers only themselves.
+  People who can't read the entity don't see the report at all.
+- URLs: screen `/r/<module>/<report>`, data `GET /api/_reports/<module>/<report>` (JSON), `.../csv`, PDF
+  `/r/<module>/<report>/pdf`. Filters are query parameters: `?status=Inside&in_time_from=2026-11-01&in_time_to=2026-11-30`.
+- At most 500 groups are shown. Need something a report can't express (joins across entities, a fixed layout)?
+  Ask Edulab before writing a custom page.
+
+### Print formats and PDF
+Every record has **Print** and **Download PDF** links. Without a print format the platform prints every field (and
+child tables as tables). For a receipt, pass, hall ticket or certificate, add `print/<entity>.html`:
+
+```html
+<!-- print/visitor_pass.html -->
+<header><strong>{{site.name}}</strong><span>Visitor pass #{{id}}</span></header>
+<table class="kv">
+  <tr><th>Visitor</th><td>{{visitor_name}}</td><td rowspan="3">{{photo}}</td></tr>
+  <tr><th>Meeting</th><td>{{whom_to_meet}}</td></tr>
+  <tr><th>In time</th><td>{{in_time}}</td></tr>
+</table>
+<footer>Printed {{today}}</footer>
+```
+
+- `{{field}}` shows the value the way screens do: rupees for money, dates in the site's time, the name of a linked
+  record, Yes/No, an image field as the picture. Values are always escaped (safe to print anything a user typed).
+- `{{#lines}} … {{/lines}}` repeats its contents for each row of a `table` field; inside it, `{{field}}` means the
+  child row's fields. Also available: `{{site.name}}`, `{{id}}`, `{{today}}`.
+- Plain HTML and CSS only (A4 page; classes `kv` and `lines` give bordered tables). No scripts, no event handlers,
+  no images or fonts from the internet: print pages and PDFs load nothing from outside.
+- The checker refuses unknown `{{names}}`, unclosed sections, scripts, and files not named after one of your entities.
+- URLs: `/m/<module>/<entity>/<id>/print` and `/m/<module>/<entity>/<id>/pdf`; only for users who may read the record.
 
 ## 6. Code: the parts the schema can't do
 
