@@ -162,6 +162,42 @@ for (const file of schemaFiles) {
   }
 }
 
+// src/api, src/jobs, pages (the core checks the same when it loads the module)
+const KEBAB = /^[a-z][a-z0-9-]*$/;
+const tsIn = (d) => existsSync(join(root, d)) ? readdirSync(join(root, d)).filter((f) => f.endsWith(".ts")) : [];
+for (const f of tsIn("src/api")) {
+  const rel = `src/api/${f}`, n = basename(f, ".ts"), src = readFileSync(join(root, rel), "utf8");
+  if (!KEBAB.test(n)) err(rel, "endpoint file names are lowercase-with-hyphens (served at /api/<module>/<name>)");
+  if (entities.has(n)) err(rel, `an entity is called "${n}"; pick another endpoint name`);
+  if (!/export\s+default\s+(async\s+)?function|export\s+default\s+async\s*\(/.test(src)) err(rel, "export default async function (ctx, body) { … }");
+  const roles = src.match(/export\s+const\s+roles\s*=\s*\[([^\]]*)\]/);
+  if (!roles) err(rel, 'export const roles = ["<module>:<role>", …] (who may call it) is required');
+  else for (const r of roles[1].match(/["']([^"']+)["']/g) || []) if (!(r.slice(1, -1) in (m?.roles || {}))) err(rel, `role ${r} is not in manifest roles`);
+  const meth = src.match(/export\s+const\s+method\s*=\s*["']([A-Za-z]+)["']/);
+  if (meth && !["GET", "POST", "PATCH", "DELETE"].includes(meth[1].toUpperCase())) err(rel, "method must be GET, POST, PATCH or DELETE");
+}
+for (const f of tsIn("src/jobs")) {
+  const rel = `src/jobs/${f}`, src = readFileSync(join(root, rel), "utf8");
+  if (!KEBAB.test(basename(f, ".ts"))) err(rel, "job file names are lowercase-with-hyphens");
+  if (!/export\s+default/.test(src)) err(rel, "export default async function (ctx, payload) { … }");
+  const sch = src.match(/export\s+const\s+schedule\s*=\s*["']([^"']*)["']/);
+  if (sch && !/^(hourly|every ([5-9]|\d\d+) minutes?|daily ([01]\d|2[0-3]):[0-5]\d)$/i.test(sch[1])) err(rel, 'schedule is "hourly", "every N minutes" (N ≥ 5) or "daily HH:MM"');
+}
+for (const [n, p] of Object.entries(m?.pages || {})) {
+  const at = `manifest.json pages.${n}`;
+  if (!KEBAB.test(n)) err(at, "page names are lowercase-with-hyphens");
+  else if (!existsSync(join(root, "pages", `${n}.html`))) err(at, `pages/${n}.html is missing`);
+  if (!p?.title) err(at, "title is required");
+  if (!Array.isArray(p?.roles) || !p.roles.length || !p.roles.every((r) => r in (m?.roles || {}))) err(at, "roles must list roles from the manifest");
+}
+const pageFiles = existsSync(join(root, "pages")) ? readdirSync(join(root, "pages")) : [];
+for (const f of pageFiles.filter((x) => /\.(html|js)$/.test(x))) {
+  const rel = `pages/${f}`, src = readFileSync(join(root, rel), "utf8");
+  if (f.endsWith(".html") && !(basename(f, ".html") in (m?.pages || {}))) err(rel, `declare it in manifest "pages" (title + roles), or it is never served`);
+  if (/["']x-(user|roles)["']/i.test(src)) err(rel, "don't send x-user / x-roles headers: the server knows who is logged in (GET /api/_me)");
+  if (/["'`]\/dev\//.test(src)) err(rel, "calls a /dev/ URL from a local stand-in; it doesn't exist on Bench");
+}
+
 // reports/<name>.json and print/<entity>.html (the core checks the same when it loads the module)
 const fieldsOf = (ent) => { try { return JSON.parse(readFileSync(join(schemaDir, `${ent}.json`), "utf8")).fields || []; } catch { return []; } };
 const repDir = join(root, "reports");

@@ -50,7 +50,7 @@ hostel/
 │   └── jobs/            Background jobs (bulk actions)
 ├── reports/             Reports and dashboard cards, one JSON file each (see "Reports and the dashboard")
 ├── print/               Print formats: <entity>.html for receipts, passes, hall tickets (see "Print formats and PDF")
-├── pages/               Custom screens beyond the automatic list/form screens
+├── pages/               Custom screens (declared in manifest "pages"; see "Custom pages")
 ├── migrations/          Only for data moves the schema can't express
 ├── import/              Mappers that bring data in from the old Edulab product (see section 10)
 └── tests/
@@ -96,6 +96,7 @@ Most modules need only `manifest.json`, `README.md`, `schema/` and a few hooks. 
 | `settings` | Values each university can change from its admin screen. Read them with `ctx.settings`. |
 | `optionalDependsOn` | Modules you react to **if** the university has them (listen to their events), but don't require. No links to them. Example: HRMS listens to `recruitment.candidate.selected`. |
 | `secrets` | Names of secrets your module needs (e.g. `gateway.api_key`). The superadmin sets them per university; read with `ctx.secrets.get()`. Never in settings or code. |
+| `pages` | Custom screens: `{ "<name>": { "title", "roles": [...] } }`, one `pages/<name>.html` each. See *Custom pages*. |
 | `publicRoutes` | Routes that work without login, e.g. a payment gateway callback `/payments/callback/:provider`. The handler must verify the caller's signature. Reviewed by hand. |
 
 ## 5. Schema files: one per entity
@@ -396,16 +397,97 @@ What `ctx` gives you:
 
 | | |
 |---|---|
-| `ctx.site` | The current university (code, name, timezone). Read-only. |
-| `ctx.user` | The logged-in user and their roles. |
-| `ctx.db` | Typed access to your module's entities and core entities. Permissions applied unless you call `ctx.db.asSystem()`. |
+| `ctx.site` | The current university (`ctx.site.code`). Read-only. |
+| `ctx.user` | In an endpoint: the logged-in user `{ id, username, roles }`. In hooks and jobs: `null` (no one is logged in). |
+| `ctx.db.<module>.<entity>` | Your module's entities, core entities and those of modules you `dependsOn`. Methods below. In an endpoint the user's row permissions apply; `ctx.db.asSystem()` drops them (say why in a comment). Hooks and jobs always run as system. |
 | `ctx.settings` | This university's values for your manifest settings. |
-| `ctx.files` | Upload, download and signed links in the site's file folder. |
-| `ctx.emit()` | Publish an event declared in `emits`. |
-| `ctx.jobs.enqueue()` | Run a job in `src/jobs/` in the background. |
-| `ctx.notify()` | Email / SMS / WhatsApp through the central communication service. |
-| `ctx.log` | Logs tagged with site and module. Shows in your terminal while you develop; on live sites, use errors (below), not logs. |
+| `ctx.emit(name, payload)` | Publish an event declared in `emits`. Sent only if the whole call succeeds. |
+| `ctx.call("<module>.<function>", body)` | Call an endpoint of a module you `dependsOn`, e.g. `ctx.call("fees.createDemand", {...})` runs `fees/src/api/create-demand.ts`. Same transaction; the called module runs as system and sees `ctx.caller`. |
+| `ctx.jobs.enqueue(name, payload)` | Run `src/jobs/<name>.ts` of your module in the background, after this transaction commits. |
 | `ctx.notify.email({...})`, `ctx.notify.whatsapp({...})` | Send an email or WhatsApp message through Edulab's messaging service (Omni). See *Notifications* below. |
+| `ctx.log`, `ctx.log.info/warn/error` | Logs tagged with site and module. Shows in your terminal while you develop; on live sites, use errors (below), not logs. |
+
+`ctx.db.<module>.<entity>` methods (every call runs in the same transaction as the rest of your code):
+
+| | |
+|---|---|
+| `list(where, { orderBy, limit, offset })` (also `find`) | Matching rows. `where` is `{ field: value }`; `{ field: null }` matches empty; `{ field: { in: [a, b] } }` matches any. `orderBy: "in_time desc"`. Default limit 1000. |
+| `get(id)` | One row, or `null` (also `null` when the user may not see it). |
+| `create(values)` (also `insert`) | New row, after the same checks as the API (required fields, options, permissions, workflow start state). |
+| `update(where, patch)` | Updates every matching row; returns the updated rows, or `null` when nothing matched. The rows are locked first, so a conditional update like `update({ id, remaining_intake: 5 }, { remaining_intake: 4 })` succeeds for only one of two people clicking at the same moment. |
+| `delete(where)` | Deletes the matching rows the user may delete; returns how many. |
+
+### Endpoints (`src/api/`)
+For an action that is more than one record change (submit an application, take a seat and raise a fee demand):
+one file per endpoint, served at `/api/<module>/<file name>`.
+
+```ts
+// src/api/submit-application.ts  →  POST /api/admission/submit-application
+export const method = "POST";                       // GET, POST, PATCH or DELETE (default POST)
+export const roles = ["admission:applicant", "admission:admin"]; // who may call it (required)
+
+export default async function submitApplication(ctx, body) {
+  const app = await ctx.db.admission.application.get(body.application); // the applicant sees only their own
+  if (!app) throw Object.assign(new Error("application not found"), { status: 404 });
+  await ctx.db.admission.application.update({ id: app.id }, { status: "Submitted" });
+  await ctx.emit("admission.application.submitted", { application: app.id });
+  return { ok: true };
+}
+```
+
+- File names are lowercase-with-hyphens and never the name of one of your entities.
+- `body` is the JSON body (for GET: the query string). What you return is sent back as JSON.
+- **One transaction.** Everything the endpoint writes, and every event it emits, is saved together or not at all.
+- **Errors:** throw an `Error` with a `status` (400, 404, 409…) and the user gets that status and your message. Any
+  other error is a 500 and a crash report for your module.
+- Users still need the right roles on each entity: an endpoint never lets someone see rows they couldn't see in the
+  list screen, unless you use `ctx.db.asSystem()`.
+- Other modules call your endpoint with `ctx.call("<your module>.<functionName>", body)` (camelCase → file name):
+  only modules that `dependsOn` yours can.
+
+### Background jobs (`src/jobs/`)
+For work that takes long or runs on a timetable (continuation offers for a whole year, a nightly summary).
+
+```ts
+// src/jobs/create-continuation-offers.ts
+export const schedule = "daily 02:00"; // optional: "hourly", "every 15 minutes" (5 or more), "daily HH:MM" (site time)
+
+export default async function (ctx, payload) {
+  const db = ctx.db.asSystem(); // jobs have no user
+  // ... do the work, return a short summary
+  return { created: 120, skipped: 3 };
+}
+```
+
+- Start one from code with `ctx.jobs.enqueue("create-continuation-offers", { academic_year: 3 })`, or by hand: the
+  site administrator (and `<module>:admin`) has a **Jobs** screen with a *Run now* button per job, the details as
+  JSON, and the recent runs with their result or error. API: `POST /api/_jobs/<module>/<job>`, `GET /api/_jobs/<id>`.
+- Each job runs in its own transaction, one at a time per site. A failed job is retried up to 3 times (2, 4 minutes
+  later), then shows as Failed with its error, and a crash report is recorded.
+- Make jobs safe to run twice (a retry may repeat work that was rolled back).
+
+### Custom pages (`pages/`)
+The list and form screens are generated. When a team needs its own screen (an applicant's step-by-step form, a gate
+desk), add an HTML page and declare it in `manifest.json`:
+
+```json
+"pages": {
+  "apply": { "title": "Apply for admission", "roles": ["admission:applicant"] }
+}
+```
+
+- `pages/apply.html` is served at `/p/<module>/apply`, only to logged-in users with one of the roles, and is linked
+  under your module on the home page. CSS, JS, images and fonts next to it are served too (`pages/app.js` →
+  `/p/<module>/app.js`; plain names, no folders).
+- The page calls the site's API with plain `fetch("/api/...")`: the user's login goes along automatically. Never
+  send user ids or roles in headers; the server knows who is logged in (`GET /api/_me`).
+- **Look like the site:** link `/_theme.css` and `/_portal.css` and use the portal's classes, so the university's
+  theme applies. Don't ship your own colours or fonts; design changes go through Edulab's design lead.
+- **Safety rules (enforced by the browser):** the page may load scripts, styles and images only from the site
+  itself (plus Google Fonts, and YouTube/Vimeo videos in an iframe), may send data only to the site's own API, and
+  can't be embedded by other websites. Put user text on the page with `textContent` or escape it first; only
+  accept `https://` links from data.
+- Pages need a login. A public landing page (before login) is not supported yet.
 
 ### Events
 

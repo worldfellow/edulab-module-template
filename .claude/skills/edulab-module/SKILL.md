@@ -70,7 +70,12 @@ on("fees.payment.received", async (ctx, event) => {
   await ctx.emit("hostel.allotment.created", { student: event.student });
 });
 ```
-`ctx.site` current university (read-only) · `ctx.secrets.get(name)` declared secrets · `ctx.user` user + roles · `ctx.db.<module>.<entity>` / `ctx.db.core.<entity>` (permissions applied; `ctx.db.asSystem()` to bypass, justify in a comment) · `ctx.settings` · `ctx.files` · `ctx.emit(name, payload)` · `ctx.jobs.enqueue(name, payload)` · `ctx.notify({to, template, channel})` · `ctx.log`.
+`ctx.site.code` · `ctx.user` {id, username, roles} in endpoints, null in hooks/jobs · `ctx.db.<module>.<entity>`: list/find(where, {orderBy:"f desc", limit, offset}), get(id)→row|null, create/insert(values), update(where, patch)→rows|null (locks rows: conditional update wins once), delete(where)→count; where {f: v} | {f: null} | {f: {in: [..]}}; user permissions apply in endpoints, `ctx.db.asSystem()` bypasses (justify in a comment); hooks/jobs run as system · `ctx.settings` · `ctx.emit(name, payload)` · `ctx.call("<dep>.<fn>", body)` → dep's src/api/<fn-kebab>.ts, same tx, only dependsOn modules · `ctx.jobs.enqueue(name, payload)` · `ctx.notify.email/whatsapp` · `ctx.log(.info/.warn/.error)`. Not yet: ctx.files, ctx.secrets.
+
+## Endpoints, jobs, pages
+src/api/<kebab>.ts → /api/<module>/<kebab>: `export const method = "POST"` (GET/POST/PATCH/DELETE), `export const roles = [manifest roles]` (required), `export default async (ctx, body) => result`. One transaction. Client errors: `throw Object.assign(new Error(msg), { status: 409 })`. Name ≠ any entity name.
+src/jobs/<kebab>.ts: `export default async (ctx, payload) => summary`, optional `export const schedule = "hourly" | "every N minutes" (N≥5) | "daily HH:MM"`. Run via ctx.jobs.enqueue or the site's Jobs screen / POST /api/_jobs/<m>/<job>. 3 tries, idempotent.
+pages/<name>.html + manifest "pages": {"<name>": {"title", "roles": [...]}} → /p/<module>/<name> (login + role). Assets next to it at /p/<module>/<file>. fetch("/api/...") (login cookie; never send x-user/x-roles headers; who am I = GET /api/_me). Link /_theme.css + /_portal.css, no own colours/fonts. CSP: only same-site scripts/API, Google Fonts, YouTube/Vimeo iframes. Escape user text; only https:// links. No public pages yet.
 Never: open DB connections, read env vars, resolve the university yourself.
 
 ## Events
