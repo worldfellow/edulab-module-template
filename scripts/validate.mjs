@@ -77,6 +77,7 @@ for (const file of schemaFiles) {
   for (const f of fields) {
     const at = `field "${f.name}"`;
     if (!IDENT.test(f.name || "")) err(rel, `${at}: name must be snake_case`);
+    if (["id", "parent", "created_at", "updated_at"].includes(f.name)) err(rel, `${at}: "${f.name}" is reserved (the core adds it); pick another name, e.g. parent_${basename(rel, ".json")}`);
     if (names.has(f.name)) err(rel, `${at}: duplicate`);
     names.add(f.name);
     if (!FIELD_TYPES.has(f.type)) { err(rel, `${at}: unknown type "${f.type}"`); continue; }
