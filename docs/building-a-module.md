@@ -96,6 +96,7 @@ Most modules need only `manifest.json`, `README.md`, `schema/` and a few hooks. 
 | `settings` | Values each university can change from its admin screen. Read them with `ctx.settings`. |
 | `optionalDependsOn` | Modules you react to **if** the university has them (listen to their events), but don't require. No links to them. Example: HRMS listens to `recruitment.candidate.selected`. |
 | `secrets` | Names of secrets your module needs (e.g. `gateway.api_key`). The superadmin sets them per university; read with `ctx.secrets.get()`. Never in settings or code. |
+| `features` | Parts of your module the Edulab superadmin can switch on or off per university: `{ "<name>": { "label": "…", "default": true } }`. See *Feature flags*. |
 | `pages` | Custom screens: `{ "<name>": { "title", "roles": [...] } }`, one `pages/<name>.html` each. See *Custom pages*. |
 | `publicRoutes` | Routes that work without login, e.g. a payment gateway callback `/payments/callback/:provider`. The handler must verify the caller's signature. Reviewed by hand. |
 
@@ -488,6 +489,34 @@ desk), add an HTML page and declare it in `manifest.json`:
   can't be embedded by other websites. Put user text on the page with `textContent` or escape it first; only
   accept `https://` links from data.
 - Pages need a login. A public landing page (before login) is not supported yet.
+
+### Feature flags (switched on or off per university)
+The Edulab superadmin decides, per university, which features are on: Edulab-wide defaults on the control plane's
+**Features** page, and a setting per university that wins over them. Platform features have flags too: Sign in with
+Google and Verify with DigiLocker are **off** unless switched on; notifications and PDF downloads are on.
+
+Declare your module's own features in `manifest.json`:
+
+```json
+"features": {
+  "bulk-payment": { "label": "Bulk payment by the college", "default": false }
+}
+```
+
+Then tie code to it. When the feature is off for a university, the platform refuses it with the label in the message:
+
+| | |
+|---|---|
+| Endpoint | `export const feature = "bulk-payment";` in `src/api/<name>.ts` → 403 when off. |
+| Job | `export const feature = "bulk-payment";` in `src/jobs/<name>.ts` → can't be queued; scheduled runs are skipped. |
+| Page | `"pages": { "bulk": { "title": "…", "roles": [...], "feature": "bulk-payment" } }` → hidden and refused when off. |
+| Anywhere else | `if (await ctx.feature("bulk-payment")) { … }` |
+
+- Name features after what a university buys or opts into, not after code. They are the basis for plans and
+  usage-based billing later.
+- The default applies until the superadmin sets something. Pick `false` for anything that costs money per use or
+  needs setup (keys, approvals).
+- Metered platform features (DigiLocker verifications, messages sent, PDFs) are counted per university per month.
 
 ### Events
 

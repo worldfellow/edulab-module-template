@@ -183,12 +183,24 @@ for (const f of tsIn("src/jobs")) {
   const sch = src.match(/export\s+const\s+schedule\s*=\s*["']([^"']*)["']/);
   if (sch && !/^(hourly|every ([5-9]|\d\d+) minutes?|daily ([01]\d|2[0-3]):[0-5]\d)$/i.test(sch[1])) err(rel, 'schedule is "hourly", "every N minutes" (N ≥ 5) or "daily HH:MM"');
 }
+const feats = m?.features || {};
+for (const [n, f] of Object.entries(feats)) {
+  const at = `manifest.json features.${n}`;
+  if (!KEBAB.test(n)) err(at, "feature names are lowercase-with-hyphens");
+  if (!f?.label) err(at, "label is required (the superadmin sees it)");
+  if (f?.default !== undefined && typeof f.default !== "boolean") err(at, "default must be true or false");
+}
+for (const d of ["src/api", "src/jobs"]) for (const f of tsIn(d)) {
+  const x = readFileSync(join(root, d, f), "utf8").match(/export\s+const\s+feature\s*=\s*["']([^"']+)["']/);
+  if (x && !(x[1] in feats)) err(`${d}/${f}`, `feature "${x[1]}" is not declared in manifest "features"`);
+}
 for (const [n, p] of Object.entries(m?.pages || {})) {
   const at = `manifest.json pages.${n}`;
   if (!KEBAB.test(n)) err(at, "page names are lowercase-with-hyphens");
   else if (!existsSync(join(root, "pages", `${n}.html`))) err(at, `pages/${n}.html is missing`);
   if (!p?.title) err(at, "title is required");
   if (!Array.isArray(p?.roles) || !p.roles.length || !p.roles.every((r) => r in (m?.roles || {}))) err(at, "roles must list roles from the manifest");
+  if (p?.feature !== undefined && !(p.feature in feats)) err(at, `feature "${p.feature}" is not declared in manifest "features"`);
 }
 const pageFiles = existsSync(join(root, "pages")) ? readdirSync(join(root, "pages")) : [];
 for (const f of pageFiles.filter((x) => /\.(html|js)$/.test(x))) {

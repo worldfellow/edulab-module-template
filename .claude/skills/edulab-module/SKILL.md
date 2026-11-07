@@ -72,6 +72,9 @@ on("fees.payment.received", async (ctx, event) => {
 ```
 `ctx.site.code` · `ctx.user` {id, username, roles} in endpoints, null in hooks/jobs · `ctx.db.<module>.<entity>`: list/find(where, {orderBy:"f desc", limit, offset}), get(id)→row|null, create/insert(values), update(where, patch)→rows|null (locks rows: conditional update wins once), delete(where)→count; where {f: v} | {f: null} | {f: {in: [..]}}; user permissions apply in endpoints, `ctx.db.asSystem()` bypasses (justify in a comment); hooks/jobs run as system · `ctx.settings` · `ctx.emit(name, payload)` · `ctx.call("<dep>.<fn>", body)` → dep's src/api/<fn-kebab>.ts, same tx, only dependsOn modules · `ctx.jobs.enqueue(name, payload)` · `ctx.notify.email/whatsapp` · `ctx.log(.info/.warn/.error)`. Not yet: ctx.files, ctx.secrets.
 
+## Feature flags
+manifest "features": {"<kebab>": {"label", "default": bool}} → key <module>.<kebab>, set per university by the superadmin (site setting > Edulab-wide > default). Gate: `export const feature = "<name>"` in src/api or src/jobs file; page entry "feature"; or `await ctx.feature("<name>")`. Off → 403 with the label; scheduled job skipped. Platform flags: google_login, digilocker (default off), notifications, pdf (on).
+
 ## Endpoints, jobs, pages
 src/api/<kebab>.ts → /api/<module>/<kebab>: `export const method = "POST"` (GET/POST/PATCH/DELETE), `export const roles = [manifest roles]` (required), `export default async (ctx, body) => result`. One transaction. Client errors: `throw Object.assign(new Error(msg), { status: 409 })`. Name ≠ any entity name.
 src/jobs/<kebab>.ts: `export default async (ctx, payload) => summary`, optional `export const schedule = "hourly" | "every N minutes" (N≥5) | "daily HH:MM"`. Run via ctx.jobs.enqueue or the site's Jobs screen / POST /api/_jobs/<m>/<job>. 3 tries, idempotent.

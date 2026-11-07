@@ -34,7 +34,7 @@ This repo is ONE module for the Edulab Bench platform. It installs per universit
 - Full human guide (only if the skill doesn't answer it): docs/building-a-module.md (core data model: docs/core-entities.md)
 
 ## Layout
-- `manifest.json` — name, version, dependsOn, roles, events, settings
+- `manifest.json` — name, version, dependsOn, roles, events, settings, features (per-university on/off switches the superadmin controls)
 - `schema/<entity>.json` — one per table; the core generates table, API, screens, permissions, migrations
 - `fixtures/` default data · `src/hooks.ts` event handlers · `src/api/` endpoints (/api/<module>/<name>) · `src/jobs/` background jobs (queued or scheduled) · `reports/` reports + dashboard cards · `print/` print formats · `pages/` custom screens (declared in manifest `pages`, served at /p/<module>/<name>) · `migrations/` data moves only · `import/` mappers from the old Edulab product (only if this module replaces one) · `tests/`
 - `README.md` = marketplace page (fill every section) · `CHANGELOG.md` one entry per version
