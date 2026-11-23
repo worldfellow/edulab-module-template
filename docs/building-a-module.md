@@ -585,6 +585,34 @@ A preview is not a release. It needs no version bump, tag or review, and it neve
 release it the normal way (below). Fields you add in a preview stay in the dev site's database; to start clean,
 ask for the dev site to be reset.
 
+### Make your own dev site (no need to ask Edulab)
+On dev your team can create its own test sites, with your module and everything it depends on installed.
+You need your module's **developer key**: the `key=` part of your developer error link (see *Errors and crash
+reports* below; your team lead has it). Send it as the header `x-error-key`.
+
+```bash
+DEV=https://admin.dev.digitalvarsity.org   # office network or VPN only
+KEY=...                                    # your developer key; never commit it
+M=hostel                                   # your module name
+
+# create a site: <code>.dev.digitalvarsity.org
+curl -X POST "$DEV/api/dev/sites?module=$M" -H "x-error-key: $KEY" -H "content-type: application/json" \
+  -d '{"code":"hosteltest","name":"Hostel Test University","adminEmail":"you@edulab.in"}'
+```
+
+The answer has the site address, the admin **username** and **password**. The password is shown **once**: save it
+in the vault. That user is admin of this one dev site only.
+
+| To | Call (all `POST`, same header) |
+|---|---|
+| List your sites | `GET $DEV/api/dev/sites?module=$M` |
+| Put your branch on the site (branch preview) | `$DEV/api/dev/sites/<code>/preview?module=$M` with `{"branch":"my-branch"}` |
+| Go back to the approved version | `$DEV/api/dev/sites/<code>/preview/off?module=$M` |
+| Re-install / upgrade to the approved version | `$DEV/api/dev/sites/<code>/install?module=$M` |
+
+Rules: at most **3 sites per module**; you can change only sites made with your module's key; dev only (prod
+sites are made by Edulab). To delete a site, ask Edulab.
+
 ### Release a version
 
 1. Bump `version` in `manifest.json` (e.g. `0.1.0` → `0.2.0`, see the version rules in section 4).
@@ -601,8 +629,8 @@ That is the whole submission. Within about 2 minutes the Edulab control plane se
 | Result | What happens | What you do |
 |---|---|---|
 | **Failed** | One or more checks failed. | Read the report, fix, bump to the next patch version (`0.2.1`) and tag again. |
-| **Waiting for review** | All checks passed. An Edulab reviewer reads the report and the changes since your last approved version. | Nothing; wait. |
-| **Rejected** | The reviewer wrote why. | Fix, bump to the next patch version and tag again. |
+| **Approved on dev** | On **dev** there is no waiting: a version that passes every check is approved at once (reviewer `auto (dev)`), and every dev site that has your module is upgraded to it within about 2 minutes. An Edulab reviewer reads it before it is promoted to prod. | Open your dev site and test it. |
+| **Rejected** | The reviewer wrote why (before promoting to prod). | Fix, bump to the next patch version and tag again. |
 | **Approved** | The version is frozen and listed in the marketplace. Universities can install it, and sites that have an older version can upgrade. | Nothing. |
 
 Until results show on your GitHub commit as a ✓ or ✗ (`edulab/marketplace`), your team lead or the reviewer shares the report with you.
@@ -623,11 +651,11 @@ Edulab runs two separate copies of the platform. They have different databases, 
 |---|---|---|
 | Who uses it | Developers and testers | Universities: real students, real fees |
 | Address | `<site>.dev.digitalvarsity.org` | `<site>.digitalvarsity.org` |
-| Your release | Every tag you push lands here first: checks, review, approval | Only versions approved on dev **and** promoted by Edulab |
+| Your release | Every tag you push lands here first: checks, then approved automatically when they pass | Only versions reviewed and promoted by Edulab |
 | Data | Sample data; sites can be thrown away | Real data, backed up nightly |
 
-1. You push a tag, and the release is checked and reviewed on **dev** (section 8).
-2. Once approved, it is installed on a dev site and tested there, by you and by Edulab's testers.
+1. You push a tag, and the release is checked on **dev** (section 8). If every check passes it is approved on dev at once and your dev sites are upgraded.
+2. You and Edulab's testers test it on your dev sites; an Edulab reviewer reads the changes.
 3. Edulab **promotes** it to prod. Universities then upgrade to it from their control plane.
 
 You never release straight to prod, and nothing on dev can touch prod data. A version is promoted unchanged: what
